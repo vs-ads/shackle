@@ -21,9 +21,25 @@
 call(PoolName, Request) ->
     call(PoolName, Request, ?DEFAULT_TIMEOUT).
 
+%%call_many(PoolName, Requests, Timeout) ->
+%%    case cast_many(PoolName, Requests, self(), Timeout) of
+%%        {ok, RequestIds} ->
+%%            receive_response_many(RequestIds);
+%%        {error, Reason} ->
+%%            {error, Reason}
+%%    end.
+
 -spec call(atom(), term(), timeout()) ->
     term() | {error, atom()}.
 
+call(PoolName, Request, Timeout) when is_list(Request) ->
+%%    call_many(PoolName, Request, Timeout);
+    case cast_many(PoolName, Request, self(), Timeout) of
+        {ok, RequestIds} ->
+            receive_response_many(RequestIds);
+        {error, Reason} ->
+            {error, Reason}
+        end;
 call(PoolName, Request, Timeout) ->
     case cast(PoolName, Request, self(), Timeout) of
         {ok, RequestId} ->
@@ -47,6 +63,29 @@ cast(PoolName, Request, Pid) ->
 -spec cast(pool_name(), term(), pid(), timeout()) ->
     {ok, request_id()} | {error, atom()}.
 
+cast_many(PoolName, Requests, Pid, Timeout) ->
+    io:format("shackle:cast_many:IN"),
+    Timestamp = os:timestamp(),
+    case shackle_pool:server(PoolName) of
+        {ok, Client, Server} ->
+            RequestIds = lists:map(fun (Request) ->
+                RequestId = {Server, make_ref()},
+                Server ! {Request, #cast {
+                            client = Client,
+                            pid = Pid,
+                            request_id = RequestId,
+                            timeout = Timeout,
+                            timestamp = Timestamp
+                }}
+                end,
+                Requests),
+            io:format("shackle:cast_many:RequestIds: ~p~n", [RequestIds]),
+            {ok, RequestIds};
+        {error, Reason} ->
+            {error, Reason}
+    end.
+%%    io:format("shackle:cast_many:OUT").
+
 cast(PoolName, Request, Pid, Timeout) ->
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
@@ -66,6 +105,15 @@ cast(PoolName, Request, Pid, Timeout) ->
 
 -spec receive_response(request_id()) ->
     term() | {error, term()}.
+
+receive_response_many(RequestIds) ->
+    receive
+        {#cast {request_id = RequestId}, Reply} ->
+            case lists:member(RequestId, RequestIds) of
+                true ->
+                    Reply
+            end
+    end.
 
 receive_response(RequestId) ->
     receive
