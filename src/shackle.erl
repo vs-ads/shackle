@@ -86,6 +86,13 @@ cast_many(PoolName, Requests, Pid, Timeout) ->
     end.
 %%    io:format("shackle:cast_many:OUT").
 
+cast(PoolName, Request, Pid, Timeout) when is_list(Request) ->
+    case cast_many(PoolName, Request, Pid, Timeout) of
+        {ok, RequestIds} ->
+            receive_response_many(RequestIds);
+        {error, Reason} ->
+            {error, Reason}
+    end;
 cast(PoolName, Request, Pid, Timeout) ->
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
