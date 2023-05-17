@@ -64,7 +64,7 @@ cast(PoolName, Request, Pid) ->
     {ok, request_id()} | {error, atom()}.
 
 cast_many(PoolName, Requests, Pid, Timeout) ->
-    io:format("shackle:cast_many:IN"),
+    io:format("shackle:cast_many:IN~n"),
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
         {ok, Client, Server} ->
