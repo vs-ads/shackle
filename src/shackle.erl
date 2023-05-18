@@ -118,8 +118,12 @@ cast(PoolName, Request, Pid, Timeout) ->
 receive_response_many(RequestIds) ->
     receive
         {#cast {request_id = RequestId}, Reply} ->
+            io:format("shackle:receive_response_many:Reply: ~p~n", [Reply]),
+            io:format("shackle:receive_response_many:{RequestId, RequestIds}: {~p, ~p}~n", [RequestId, RequestIds]),
             case lists:member(RequestId, RequestIds) of
                 true ->
+                    Reply;
+                false ->
                     Reply
             end
     end.
