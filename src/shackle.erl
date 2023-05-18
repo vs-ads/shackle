@@ -68,15 +68,17 @@ cast_many(PoolName, Requests, Pid, Timeout) ->
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
         {ok, Client, Server} ->
-            RequestIds = lists:map(fun (Request) ->
-                RequestId = {Server, make_ref()},
-                Server ! {Request, #cast {
-                            client = Client,
-                            pid = Pid,
-                            request_id = RequestId,
-                            timeout = Timeout,
-                            timestamp = Timestamp
-                }}
+            RequestIds = lists:map(
+                fun (Request) ->
+                    RequestId = {Server, make_ref()},
+                    Server ! {Request, #cast {
+                                client = Client,
+                                pid = Pid,
+                                request_id = RequestId,
+                                timeout = Timeout,
+                                timestamp = Timestamp
+                    }},
+                    RequestId
                 end,
                 Requests),
             io:format("shackle:cast_many:RequestIds: ~p~n", [RequestIds]),
