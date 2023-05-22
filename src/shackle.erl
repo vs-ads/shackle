@@ -116,15 +116,20 @@ cast(PoolName, Request, Pid, Timeout) ->
     term() | {error, term()}.
 
 receive_response_many(RequestIds) ->
+    receive_response_many(RequestIds, []).
+
+receive_response_many([], Acc) ->
+    lists:reverse(Acc);
+receive_response_many(RequestIds, Acc) ->
     receive
         {#cast {request_id = RequestId}, Reply} ->
             io:format("shackle:receive_response_many:Reply: ~p~n", [Reply]),
             io:format("shackle:receive_response_many:{RequestId, RequestIds}: {~p, ~p}~n", [RequestId, RequestIds]),
             case lists:member(RequestId, RequestIds) of
                 true ->
-                    Reply;
+                    receive_response_many(lists:delete(RequestId, RequestIds), [Reply|Acc]);
                 false ->
-                    Reply
+                    ok
             end
     end.
 
