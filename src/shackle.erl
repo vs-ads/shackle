@@ -119,7 +119,7 @@ receive_response_many(RequestIds) ->
     receive_response_many(RequestIds, []).
 
 receive_response_many([], Acc) ->
-    lists:reverse(Acc);
+    {ok, lists:reverse(Acc)};
 receive_response_many(RequestIds, Acc) ->
     receive
         {#cast {request_id = RequestId}, Reply} ->
