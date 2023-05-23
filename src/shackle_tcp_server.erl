@@ -88,10 +88,12 @@ handle_msg({Request, #cast {
         socket = Socket
     } = State, ClientState}) ->
 
+    io:format("shackle_tcp_server: Client:handle_request BEFORE. {Request, ClientState}: {~p,~p}~n", [Request, ClientState]),
     try Client:handle_request(Request, ClientState) of
         {ok, ExtRequestId, Data, ClientState2} ->
             case gen_tcp:send(Socket, Data) of
                 ok ->
+                    io:format("shackle_tcp_server: Client:handle_request  AFTER. {ExtRequestId, Data, ClientState2}: {~p,~p,~p}~n", [Request, Data, ClientState2]),
                     Msg = {timeout, ExtRequestId},
                     TimerRef = erlang:send_after(Timeout, self(), Msg),
                     shackle_queue:add(ExtRequestId, Cast, TimerRef),
