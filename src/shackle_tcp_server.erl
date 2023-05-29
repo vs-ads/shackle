@@ -97,7 +97,7 @@ handle_msg({Request, #cast {
                     Timeout_setup = fun (X) ->
                         Msg = {timeout, X},
                         TimerRef = erlang:send_after(Timeout, self(), Msg),
-                        shackle_queue:add(ExtRequestId, Cast, TimerRef)
+                        shackle_queue:add(X, Cast, TimerRef)
                     end,
                     case is_list(ExtRequestId) of
                         true ->
