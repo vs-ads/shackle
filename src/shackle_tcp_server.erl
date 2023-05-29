@@ -94,9 +94,17 @@ handle_msg({Request, #cast {
             case gen_tcp:send(Socket, Data) of
                 ok ->
                     io:format("shackle_tcp_server: Client:handle_request  AFTER. {ExtRequestId, Data, ClientState2}: {~p,~p,~p}~n", [Request, Data, ClientState2]),
-                    Msg = {timeout, ExtRequestId},
-                    TimerRef = erlang:send_after(Timeout, self(), Msg),
-                    shackle_queue:add(ExtRequestId, Cast, TimerRef),
+                    Timeout_setup = fun (X) ->
+                        Msg = {timeout, X},
+                        TimerRef = erlang:send_after(Timeout, self(), Msg),
+                        shackle_queue:add(ExtRequestId, Cast, TimerRef)
+                    end,
+                    case is_list(ExtRequestId) of
+                        true ->
+                            lists:foreach(Timeout_setup, ExtRequestId);
+                        false ->
+                            Timeout_setup(ExtRequestId)
+                    end,
                     {ok, {State, ClientState2}};
                 {error, Reason} ->
                     ?WARN(PoolName, "send error: ~p", [Reason]),
