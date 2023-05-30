@@ -69,16 +69,34 @@ cast_many(PoolName, Requests, Pid, Timeout) ->
     case shackle_pool:server(PoolName) of
         {ok, Client, Server} ->
             io:format("shackle:cast_many:{Client, Server}: {~p, ~p}~n", [Client, Server]),
-            RequestIds = lists:map(fun (_) -> {Server, make_ref()} end, Requests),
-            Server ! {Requests, #cast {
-                                client = Client,
-                                pid = Pid,
-                                request_id = RequestIds,
-                                timeout = Timeout,
-                                timestamp = Timestamp
-                    }},
-            io:format("shackle:cast_many:RequestIds: ~p~n", [RequestIds]),
-            {ok, RequestIds};
+            {Rs, Casts, Ids} = lists:foldl(
+                fun (X, {Rs, Casts, Ids}) ->
+                    Id = {Server, make_ref()},
+                    Cast = #cast {
+                        client = Client,
+                        pid = Pid,
+                        request_id = Id,
+                        timeout = Timeout,
+                        timestamp = Timestamp
+                    },
+                    {[X|Rs], [Cast|Casts], [Id|Ids]}
+                end,
+                {[], [], []}, Requests),
+%%            {Ms, Ids} = lists:mapfoldl(fun (X, Ids) ->
+%%                    Id = {Server, make_ref()},
+%%                    {{X, #cast {
+%%                        client = Client,
+%%                        pid = Pid,
+%%                        request_id = Id,
+%%                        timeout = Timeout,
+%%                        timestamp = Timestamp
+%%                    }},
+%%                    [Id|Ids]}
+%%                end,
+%%                [], Requests),
+            Server ! {lists:reverse(Rs), lists:reverse(Casts)},
+            io:format("shackle:cast_many:RequestIds: ~p~n", [lists:reverse(Ids)]),
+            {ok, lists:reverse(Ids)};
         {error, Reason} ->
             {error, Reason}
     end.

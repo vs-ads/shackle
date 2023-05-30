@@ -94,16 +94,17 @@ handle_msg({Request, #cast {
             case gen_tcp:send(Socket, Data) of
                 ok ->
                     io:format("shackle_tcp_server: Client:handle_request  AFTER. {ExtRequestId, Data, ClientState2}: {~p,~p,~p}~n", [Request, Data, ClientState2]),
-                    Timeout_setup = fun (X) ->
-                        Msg = {timeout, X},
+                    Timeout_setup = fun ({Id, IdCast}) ->
+                        Msg = {timeout, Id},
                         TimerRef = erlang:send_after(Timeout, self(), Msg),
-                        shackle_queue:add(X, Cast, TimerRef)
+                        shackle_queue:add(Id, IdCast, TimerRef)
                     end,
                     case is_list(ExtRequestId) of
                         true ->
-                            lists:foreach(Timeout_setup, ExtRequestId);
+                            IdCasts = lists:zip(ExtRequestId, Cast),
+                            lists:foreach(Timeout_setup, IdCasts);
                         false ->
-                            Timeout_setup(ExtRequestId)
+                            Timeout_setup(ExtRequestId, Cast)
                     end,
                     {ok, {State, ClientState2}};
                 {error, Reason} ->
