@@ -120,6 +120,11 @@ handle_msg({Request, #cast {
             ?SERVER_UTILS:reply(Name, {error, client_crash}, Cast),
             {ok, {State, ClientState}}
     end;
+
+handle_msg({Requests, Ids}, {State, ClientState}) ->
+    io:format("shackle_tcp_server:handle_msg: {Requests, Ids}: {~p, ~p}~n", [Requests, Ids]),
+    {ok, {State, ClientState}};
+
 handle_msg({tcp, Socket, Data}, {#state {
         client = Client,
         name = Name,
