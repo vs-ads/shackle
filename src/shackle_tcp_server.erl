@@ -104,7 +104,7 @@ handle_msg({Request, #cast {
                             IdCasts = lists:zip(ExtRequestId, Cast),
                             lists:foreach(Timeout_setup, IdCasts);
                         false ->
-                            Timeout_setup(ExtRequestId, Cast)
+                            Timeout_setup({ExtRequestId, Cast})
                     end,
                     {ok, {State, ClientState2}};
                 {error, Reason} ->
