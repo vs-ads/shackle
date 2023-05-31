@@ -245,7 +245,10 @@ set_receive_data_timeout({ok, Reason}, {_, Id, _, _}, Cast) ->
 
 set_receive_data_timeout(Id, Cast) when is_list(Id) ->
     IdCasts = lists:zip(Id, Cast),
-    lists:foreach(fun set_receive_data_timeout/1, IdCasts).
+    lists:foreach(fun set_receive_data_timeout/1, IdCasts);
+set_receive_data_timeout(Id, Cast) ->
+    set_receive_data_timeout({Id, Cast}).
+
 set_receive_data_timeout({Id, #cast {timeout = Timeout} = Cast}) ->
     Msg = {timeout, Id},
     TimerRef = erlang:send_after(Timeout, self(), Msg),
