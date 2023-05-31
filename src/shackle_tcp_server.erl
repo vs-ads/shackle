@@ -205,7 +205,12 @@ prepare_data({Request, Cast}, {#state {
     name = Name,
     pool_name = PoolName
 } = _State, ClientState}) ->
-    try Client:handle_request(Request, ClientState) of
+    io:format("prepare_data:     Request: ~p~n", [Request]),
+    io:format("prepare_data: ClientState: ~p~n", [ClientState]),
+    Handled = Client:handle_request(Request, ClientState),
+    io:format("prepare_data:     Handled: ~p~n", [Handled]),
+    try Handled of
+%%    try Client:handle_request(Request, ClientState) of
         {ok, Id, Data, ClientState2} ->
             {ok, Id, Data, ClientState2}
     catch
