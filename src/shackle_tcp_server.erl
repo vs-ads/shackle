@@ -192,13 +192,9 @@ handle_client_request({Request, Cast},
     {#state {
         socket = Socket
     } = State, ClientState}) ->
-    io:format("handle_client_request: IN", []),
     Prep = prepare_data({Request, Cast}, {State, ClientState}),
-    io:format("handle_client_request:             prepare_data: ~p~n", [Prep]),
     Sent = send_data(Prep, Socket, State, ClientState, Cast),
-    io:format("handle_client_request:                send_data: ~p~n", [Sent]),
     Ret = set_receive_data_timeout(Sent, Prep, Cast),
-    io:format("handle_client_request: set_receive_data_timeout: ~p~n", [Ret]),
     Ret.
 
 prepare_data({Request, Cast}, {#state {
