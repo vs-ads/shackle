@@ -214,7 +214,7 @@ prepare_data({Request, Cast}, {#state {
 
 send_data({error, _Reason}, _, State, ClientState, _) ->
     {ok, {State, ClientState}};
-send_data({{ok, _Id, Data, ClientState2}}, Socket,
+send_data({ok, _Id, Data, ClientState2}, Socket,
     #state {
         name = Name,
         pool_name = PoolName
