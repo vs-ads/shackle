@@ -79,51 +79,9 @@ handle_msg({_, #cast {} = Cast}, {#state {
 
     ?SERVER_UTILS:reply(Name, {error, no_socket}, Cast),
     {ok, {State, ClientState}};
-handle_msg({Request, #cast {
-        timeout = Timeout
-    } = Cast}, {#state {
-        client = Client,
-        name = Name,
-        pool_name = PoolName,
-        socket = Socket
-    } = State, ClientState}) ->
 
-    io:format("shackle_tcp_server: Client:handle_request BEFORE. {Request, ClientState}: {~p,~p}~n", [Request, ClientState]),
-    try Client:handle_request(Request, ClientState) of
-        {ok, ExtRequestId, Data, ClientState2} ->
-            case gen_tcp:send(Socket, Data) of
-                ok ->
-                    io:format("shackle_tcp_server: Client:handle_request  AFTER. {ExtRequestId, Data, ClientState2}: {~p,~p,~p}~n", [Request, Data, ClientState2]),
-                    Timeout_setup = fun ({Id, IdCast}) ->
-                        Msg = {timeout, Id},
-                        TimerRef = erlang:send_after(Timeout, self(), Msg),
-                        shackle_queue:add(Id, IdCast, TimerRef)
-                    end,
-                    case is_list(ExtRequestId) of
-                        true ->
-                            IdCasts = lists:zip(ExtRequestId, Cast),
-                            lists:foreach(Timeout_setup, IdCasts);
-                        false ->
-                            Timeout_setup({ExtRequestId, Cast})
-                    end,
-                    {ok, {State, ClientState2}};
-                {error, Reason} ->
-                    ?WARN(PoolName, "send error: ~p", [Reason]),
-                    gen_tcp:close(Socket),
-                    ?SERVER_UTILS:reply(Name, {error, socket_closed}, Cast),
-                    close(State, ClientState2)
-            end
-    catch
-        ?EXCEPTION(E, R, Stacktrace) ->
-            ?WARN(PoolName, "handle_request crash: ~p:~p~n~p~n",
-                [E, R, ?GET_STACK(Stacktrace)]),
-            ?SERVER_UTILS:reply(Name, {error, client_crash}, Cast),
-            {ok, {State, ClientState}}
-    end;
-
-handle_msg({Requests, Ids}, {State, ClientState}) ->
-    io:format("shackle_tcp_server:handle_msg: {Requests, Ids}: {~p, ~p}~n", [Requests, Ids]),
-    {ok, {State, ClientState}};
+handle_msg({Request, Cast}, {State, ClientState}) ->
+    handle_client_request({Request, Cast}, {State, ClientState});
 
 handle_msg({tcp, Socket, Data}, {#state {
         client = Client,
@@ -230,6 +188,60 @@ terminate(_Reason, {#state {
     ok.
 
 %% private
+handle_client_request({Request, Cast},
+    {#state {
+        socket = Socket
+    } = State, ClientState}) ->
+    Prep = prepare_data({Request, Cast}, {State, ClientState}),
+    Sent = send_data(Prep, Socket, State, ClientState, Cast),
+    set_receive_data_timeout(Sent, Prep, Cast).
+
+prepare_data({Request, Cast}, {#state {
+    client = Client,
+    name = Name,
+    pool_name = PoolName
+} = _State, ClientState}) ->
+    try Client:handle_request(Request, ClientState) of
+        {ok, Id, Data, ClientState2} ->
+            {ok, Id, Data, ClientState2}
+    catch
+        ?EXCEPTION(E, R, Stacktrace) ->
+            ?WARN(PoolName, "handle_request crash: ~p:~p~n~p~n",
+                [E, R, ?GET_STACK(Stacktrace)]),
+            ?SERVER_UTILS:reply(Name, {error, client_crash}, Cast),
+            {error, client_crash}
+    end.
+
+send_data({error, _Reason}, _, State, ClientState, _) ->
+    {ok, {State, ClientState}};
+send_data({{ok, _Id, Data, ClientState2}}, Socket,
+    #state {
+        name = Name,
+        pool_name = PoolName
+    } = State, _, Cast) ->
+    case gen_tcp:send(Socket, Data) of
+        ok -> {ok, {State, ClientState2}};
+        {error, Reason} ->
+            ?WARN(PoolName, "send error: ~p", [Reason]),
+            gen_tcp:close(Socket),
+            ?SERVER_UTILS:reply(Name, {error, socket_closed}, Cast),
+            {error, close(State, ClientState2)}
+    end.
+
+set_receive_data_timeout({error, Reason}, _, _) ->
+    {ok, Reason};
+set_receive_data_timeout({ok, Reason}, {_, Id, _, _}, Cast) ->
+    set_receive_data_timeout(Id, Cast),
+    {ok, Reason}.
+
+set_receive_data_timeout(Id, Cast) when is_list(Id) ->
+    IdCasts = lists:zip(Id, Cast),
+    lists:foreach(fun set_receive_data_timeout/1, IdCasts).
+set_receive_data_timeout({Id, #cast {timeout = Timeout} = Cast}) ->
+    Msg = {timeout, Id},
+    TimerRef = erlang:send_after(Timeout, self(), Msg),
+    shackle_queue:add(Id, Cast, TimerRef).
+
 close(#state {name = Name} = State, ClientState) ->
     ?SERVER_UTILS:reply_all(Name, {error, socket_closed}),
     reconnect(State, ClientState).
