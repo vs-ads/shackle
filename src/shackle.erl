@@ -73,6 +73,7 @@ cast(PoolName, Request, Pid, Timeout) ->
     end.
 
 cast_many(PoolName, Requests, Pid, Timeout) ->
+    io:format("shackle:cast_many:Requests: ~p~n", [Requests]),
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
         {ok, Client, Server} ->
@@ -89,8 +90,12 @@ cast_many(PoolName, Requests, Pid, Timeout) ->
                     {[X|Rs], [Cast|Casts], [Id|Ids]}
                 end,
                 {[], [], []}, Requests),
-            Server ! {lists:reverse(Rs), lists:reverse(Casts)},
-            {ok, lists:reverse(Ids)};
+            Rs2 = lists:reverse(Rs),
+            Casts2 = lists:reverse(Casts),
+            io:format("shackle:cast_many: ~p ! {~p, ~p} ~n", [Server, Rs2, Casts2]),
+            Server ! {Rs2, Casts2},
+            Ids2 = lists:reverse(Ids),
+            {ok, Ids2};
         {error, Reason} ->
             {error, Reason}
     end.
