@@ -48,6 +48,7 @@ cast(PoolName, Request, Pid) ->
     {ok, request_id()} | {error, atom()}.
 
 cast(PoolName, Request, Pid, Timeout) when is_list(Request) ->
+    io:format("shackle:cast:Requests: ~p~n", [Request]),
     case cast_many(PoolName, Request, Pid, Timeout) of
         {ok, RequestIds} ->
             receive_response_many(RequestIds);
