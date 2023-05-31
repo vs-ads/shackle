@@ -64,11 +64,9 @@ cast(PoolName, Request, Pid) ->
     {ok, request_id()} | {error, atom()}.
 
 cast_many(PoolName, Requests, Pid, Timeout) ->
-    io:format("shackle:cast_many:IN~n"),
     Timestamp = os:timestamp(),
     case shackle_pool:server(PoolName) of
         {ok, Client, Server} ->
-            io:format("shackle:cast_many:{Client, Server}: {~p, ~p}~n", [Client, Server]),
             {Rs, Casts, Ids} = lists:foldl(
                 fun (X, {Rs, Casts, Ids}) ->
                     Id = {Server, make_ref()},
@@ -82,25 +80,11 @@ cast_many(PoolName, Requests, Pid, Timeout) ->
                     {[X|Rs], [Cast|Casts], [Id|Ids]}
                 end,
                 {[], [], []}, Requests),
-%%            {Ms, Ids} = lists:mapfoldl(fun (X, Ids) ->
-%%                    Id = {Server, make_ref()},
-%%                    {{X, #cast {
-%%                        client = Client,
-%%                        pid = Pid,
-%%                        request_id = Id,
-%%                        timeout = Timeout,
-%%                        timestamp = Timestamp
-%%                    }},
-%%                    [Id|Ids]}
-%%                end,
-%%                [], Requests),
             Server ! {lists:reverse(Rs), lists:reverse(Casts)},
-            io:format("shackle:cast_many:RequestIds: ~p~n", [lists:reverse(Ids)]),
             {ok, lists:reverse(Ids)};
         {error, Reason} ->
             {error, Reason}
     end.
-%%    io:format("shackle:cast_many:OUT").
 
 cast(PoolName, Request, Pid, Timeout) when is_list(Request) ->
     case cast_many(PoolName, Request, Pid, Timeout) of
@@ -137,8 +121,6 @@ receive_response_many([], Acc) ->
 receive_response_many(RequestIds, Acc) ->
     receive
         {#cast {request_id = RequestId}, Reply} ->
-            io:format("shackle:receive_response_many:Reply: ~p~n", [Reply]),
-            io:format("shackle:receive_response_many:{RequestId, RequestIds}: {~p, ~p}~n", [RequestId, RequestIds]),
             case lists:member(RequestId, RequestIds) of
                 true ->
                     receive_response_many(lists:delete(RequestId, RequestIds), [Reply|Acc]);

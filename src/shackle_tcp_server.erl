@@ -192,12 +192,9 @@ handle_client_request({Request, Cast},
     {#state {
         socket = Socket
     } = State, ClientState}) ->
-    io:format("handle_client_request: Request: ~p~n", [Request]),
-    io:format("handle_client_request:    Cast: ~p~n", [Cast]),
     Prep = prepare_data({Request, Cast}, {State, ClientState}),
     Sent = send_data(Prep, Socket, State, ClientState, Cast),
     Ret = set_receive_data_timeout(Sent, Prep, Cast),
-    io:format("handle_client_request: OUT~n", []),
     Ret.
 
 prepare_data({Request, Cast}, {#state {
@@ -205,12 +202,7 @@ prepare_data({Request, Cast}, {#state {
     name = Name,
     pool_name = PoolName
 } = _State, ClientState}) ->
-    io:format("prepare_data:     Request: ~p~n", [Request]),
-    io:format("prepare_data: ClientState: ~p~n", [ClientState]),
-    Handled = Client:handle_request(Request, ClientState),
-    io:format("prepare_data:     Handled: ~p~n", [Handled]),
-    try Handled of
-%%    try Client:handle_request(Request, ClientState) of
+    try Client:handle_request(Request, ClientState) of
         {ok, Id, Data, ClientState2} ->
             {ok, Id, Data, ClientState2}
     catch
