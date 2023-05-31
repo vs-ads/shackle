@@ -21,25 +21,9 @@
 call(PoolName, Request) ->
     call(PoolName, Request, ?DEFAULT_TIMEOUT).
 
-%%call_many(PoolName, Requests, Timeout) ->
-%%    case cast_many(PoolName, Requests, self(), Timeout) of
-%%        {ok, RequestIds} ->
-%%            receive_response_many(RequestIds);
-%%        {error, Reason} ->
-%%            {error, Reason}
-%%    end.
-
 -spec call(atom(), term(), timeout()) ->
     term() | {error, atom()}.
 
-call(PoolName, Request, Timeout) when is_list(Request) ->
-%%    call_many(PoolName, Request, Timeout);
-    case cast_many(PoolName, Request, self(), Timeout) of
-        {ok, RequestIds} ->
-            receive_response_many(RequestIds);
-        {error, Reason} ->
-            {error, Reason}
-        end;
 call(PoolName, Request, Timeout) ->
     case cast(PoolName, Request, self(), Timeout) of
         {ok, RequestId} ->
@@ -62,29 +46,6 @@ cast(PoolName, Request, Pid) ->
 
 -spec cast(pool_name(), term(), pid(), timeout()) ->
     {ok, request_id()} | {error, atom()}.
-
-cast_many(PoolName, Requests, Pid, Timeout) ->
-    Timestamp = os:timestamp(),
-    case shackle_pool:server(PoolName) of
-        {ok, Client, Server} ->
-            {Rs, Casts, Ids} = lists:foldl(
-                fun (X, {Rs, Casts, Ids}) ->
-                    Id = {Server, make_ref()},
-                    Cast = #cast {
-                        client = Client,
-                        pid = Pid,
-                        request_id = Id,
-                        timeout = Timeout,
-                        timestamp = Timestamp
-                    },
-                    {[X|Rs], [Cast|Casts], [Id|Ids]}
-                end,
-                {[], [], []}, Requests),
-            Server ! {lists:reverse(Rs), lists:reverse(Casts)},
-            {ok, lists:reverse(Ids)};
-        {error, Reason} ->
-            {error, Reason}
-    end.
 
 cast(PoolName, Request, Pid, Timeout) when is_list(Request) ->
     case cast_many(PoolName, Request, Pid, Timeout) of
@@ -110,8 +71,37 @@ cast(PoolName, Request, Pid, Timeout) ->
             {error, Reason}
     end.
 
+cast_many(PoolName, Requests, Pid, Timeout) ->
+    Timestamp = os:timestamp(),
+    case shackle_pool:server(PoolName) of
+        {ok, Client, Server} ->
+            {Rs, Casts, Ids} = lists:foldl(
+                fun (X, {Rs, Casts, Ids}) ->
+                    Id = {Server, make_ref()},
+                    Cast = #cast {
+                        client = Client,
+                        pid = Pid,
+                        request_id = Id,
+                        timeout = Timeout,
+                        timestamp = Timestamp
+                    },
+                    {[X|Rs], [Cast|Casts], [Id|Ids]}
+                end,
+                {[], [], []}, Requests),
+            Server ! {lists:reverse(Rs), lists:reverse(Casts)},
+            {ok, lists:reverse(Ids)};
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
 -spec receive_response(request_id()) ->
     term() | {error, term()}.
+
+receive_response(RequestId) ->
+    receive
+        {#cast {request_id = RequestId}, Reply} ->
+            Reply
+    end.
 
 receive_response_many(RequestIds) ->
     receive_response_many(RequestIds, []).
@@ -127,10 +117,4 @@ receive_response_many(RequestIds, Acc) ->
                 false ->
                     ok
             end
-    end.
-
-receive_response(RequestId) ->
-    receive
-        {#cast {request_id = RequestId}, Reply} ->
-            Reply
     end.
